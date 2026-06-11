@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MiniONU — Sistema de Oradores</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@300;400;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #08101E;
+    --bg2:       #0D1A2E;
+    --bg3:       #132240;
+    --blue:      #1A7FD4;
+    --blue-glow: #1A7FD433;
+    --gold:      #C9A84C;
+    --gold-dim:  #C9A84C22;
+    --white:     #EDF2FF;
+    --muted:     #5A7A9A;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--white);
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Fundo com linhas sutis tipo grade ONU */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(var(--bg3) 1px, transparent 1px),
+      linear-gradient(90deg, var(--bg3) 1px, transparent 1px);
+    background-size: 60px 60px;
+    opacity: .25;
+    pointer-events: none;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 48px;
+    padding: 40px 24px;
+    max-width: 560px;
+    width: 100%;
+  }
+
+  /* Emblema / logo */
+  .emblem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .globe {
+    width: 88px; height: 88px;
+    border-radius: 50%;
+    border: 2px solid var(--gold);
+    background: var(--gold-dim);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 42px;
+    box-shadow: 0 0 40px var(--blue-glow);
+  }
+
+  .logo-area {
+    text-align: center;
+  }
+
+  /* Se houver logo.png na mesma pasta, aparece aqui */
+  #logo-img {
+    max-height: 80px;
+    max-width: 280px;
+    object-fit: contain;
+    display: none;
+    margin-bottom: 12px;
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(28px, 5vw, 42px);
+    color: var(--white);
+    letter-spacing: .02em;
+    line-height: 1.15;
+  }
+
+  h1 span { color: var(--gold); }
+
+  .subtitle {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--muted);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  /* Divisor dourado */
+  .divider {
+    width: 60px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+
+  /* Cards de ação */
+  .cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    width: 100%;
+  }
+
+  .card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 28px 20px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-decoration: none;
+    transition: transform .15s, box-shadow .15s, border-color .15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute; inset: 0;
+    opacity: 0;
+    transition: opacity .2s;
+  }
+
+  .card:hover { transform: translateY(-3px); }
+  .card:hover::before { opacity: 1; }
+
+  .card.operador {
+    background: var(--bg3);
+    border-color: var(--blue);
+    box-shadow: 0 0 0 0 var(--blue-glow);
+  }
+  .card.operador::before { background: var(--blue-glow); }
+  .card.operador:hover { box-shadow: 0 8px 32px var(--blue-glow); }
+
+  .card.painel {
+    background: var(--bg3);
+    border-color: var(--gold);
+    box-shadow: 0 0 0 0 var(--gold-dim);
+  }
+  .card.painel::before { background: var(--gold-dim); }
+  .card.painel:hover { box-shadow: 0 8px 32px var(--gold-dim); }
+
+  .card-icon { font-size: 34px; position: relative; }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    position: relative;
+  }
+  .card.operador .card-title { color: var(--blue); }
+  .card.painel   .card-title { color: var(--gold); }
+
+  .card-desc {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.5;
+    position: relative;
+  }
+
+  .footer {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="emblem">
+    <div class="globe">🌐</div>
+    <div class="logo-area">
+      <img id="logo-img" src="logo.png" alt="Logo MiniONU"
+           onerror="this.style.display='none'">
+      <h1>Mini<span>ONU</span></h1>
+      <p class="subtitle">Sistema de Lista de Oradores</p>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="cards">
+    <a class="card operador" href="operador.html" target="_blank">
+      <span class="card-icon">🎙️</span>
+      <span class="card-title">Mesa Diretora</span>
+      <span class="card-desc">Gerenciar lista, chamar oradores e controlar o tempo</span>
+    </a>
+
+    <a class="card painel" href="painel.html" target="_blank">
+      <span class="card-icon">📺</span>
+      <span class="card-title">Painel Público</span>
+      <span class="card-desc">Exibição para projetor ou TV com cronômetro</span>
+    </a>
+  </div>
+
+  <p class="footer">
+    Abra a <strong>Mesa Diretora</strong> numa janela e o <strong>Painel Público</strong> em outra.<br>
+    Coloque logo.png na mesma pasta para exibir a logo da escola.
+  </p>
+</div>
+
+<script>
+  // Tenta carregar logo.png — se existir, mostra
+  const img = document.getElementById('logo-img');
+  img.onload = () => { img.style.display = 'block'; };
+</script>
+</body>
+</html>

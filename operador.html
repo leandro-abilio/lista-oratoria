@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mesa Diretora — MiniONU</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #08101E;
+    --bg2:     #0D1A2E;
+    --bg3:     #132240;
+    --bg4:     #1A2E50;
+    --blue:    #1A7FD4;
+    --blue-d:  #0A3A6A;
+    --gold:    #C9A84C;
+    --gold-d:  #3A2800;
+    --white:   #EDF2FF;
+    --muted:   #5A7A9A;
+    --muted2:  #2A4060;
+    --green:   #34D399;
+    --orange:  #FB923C;
+    --red:     #F87171;
+    --border:  #1A3050;
+  }
+
+  html, body {
+    height: 100%; background: var(--bg);
+    color: var(--white); font-family: 'Inter', sans-serif;
+    font-size: 14px; line-height: 1.4;
+  }
+
+  /* ── Layout ── */
+  .layout {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    grid-template-columns: 1fr 1fr;
+    height: 100vh;
+    gap: 0;
+  }
+
+  header {
+    grid-column: 1 / -1;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 14px;
+  }
+
+  #header-logo {
+    height: 36px; width: auto;
+    object-fit: contain; display: none;
+  }
+
+  .header-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px; color: var(--white);
+  }
+  .header-title span { color: var(--gold); }
+
+  .header-right {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 16px;
+  }
+
+  #clock {
+    font-size: 20px; font-weight: 600;
+    color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Painéis esq/dir ── */
+  .panel {
+    padding: 20px;
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: 14px;
+    border-right: 1px solid var(--border);
+  }
+  .panel:last-child { border-right: none; }
+
+  /* ── Seções ── */
+  .section {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .section-head {
+    padding: 8px 14px;
+    background: var(--bg3);
+    font-size: 10px; font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .section-body { padding: 14px; }
+
+  /* ── Comitê / Tópico ── */
+  .info-row {
+    display: flex; align-items: center;
+    gap: 10px; margin-bottom: 8px;
+  }
+  .info-row:last-child { margin-bottom: 0; }
+
+  .info-label {
+    font-size: 10px; color: var(--muted);
+    letter-spacing: .08em; text-transform: uppercase;
+    min-width: 52px;
+  }
+
+  .info-value {
+    flex: 1; font-size: 13px; font-weight: 600;
+    color: var(--white);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .info-value.gold { color: var(--gold); }
+
+  /* ── Orador atual ── */
+  .orador-atual {
+    font-family: 'Playfair Display', serif;
+    font-size: 32px; color: var(--blue);
+    min-height: 44px;
+    word-break: break-word;
+  }
+  .orador-atual.vazio { color: var(--muted); font-size: 24px; font-style: italic; }
+
+  /* ── Timer ── */
+  .timer-display {
+    font-size: 52px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .04em;
+    color: var(--green);
+    transition: color .3s;
+  }
+  .timer-display.orange { color: var(--orange); }
+  .timer-display.red    { color: var(--red); }
+  .timer-display.idle   { color: var(--muted); }
+
+  .timer-bar-wrap {
+    height: 6px; background: var(--muted2);
+    border-radius: 3px; margin-top: 10px; overflow: hidden;
+  }
+  .timer-bar {
+    height: 100%; width: 100%;
+    background: var(--green);
+    border-radius: 3px;
+    transition: width .5s linear, background .3s;
+  }
+
+  .timer-controls {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 8px; margin-top: 12px;
+  }
+
+  .timer-cfg {
+    margin-top: 10px;
+    font-size: 11px; color: var(--muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  /* ── Botões ── */
+  .btn {
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px; padding: 10px 14px;
+    border: none; border-radius: 3px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px; font-weight: 600;
+    letter-spacing: .04em; text-transform: uppercase;
+    cursor: pointer; transition: filter .15s, transform .1s;
+    white-space: nowrap;
+  }
+  .btn:hover  { filter: brightness(1.15); }
+  .btn:active { transform: scale(.97); }
+
+  .btn-primary  { background: var(--blue);   color: #fff; }
+  .btn-ghost    { background: var(--bg3);    color: var(--white); border: 1px solid var(--border); }
+  .btn-gold     { background: var(--gold-d); color: var(--gold);  border: 1px solid var(--gold); }
+  .btn-danger   { background: #1A0A0A;       color: var(--red);   border: 1px solid var(--red); }
+  .btn-full     { width: 100%; }
+  .btn-sm       { padding: 6px 10px; font-size: 11px; }
+
+  .btn-group { display: flex; flex-direction: column; gap: 8px; }
+  .btn-row   { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  /* ── Lista de oradores ── */
+  .lista-wrap {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+
+  .lista-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    background: var(--bg3);
+    border-radius: 3px;
+    border-left: 3px solid transparent;
+    transition: background .15s;
+  }
+  .lista-item:hover { background: var(--bg4); }
+  .lista-item.primeiro { border-left-color: var(--blue); }
+
+  .lista-num {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    min-width: 20px;
+  }
+  .lista-nome {
+    flex: 1; font-size: 13px; font-weight: 500;
+    color: var(--white);
+  }
+  .lista-rm {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 14px;
+    padding: 2px 6px; border-radius: 2px;
+    transition: color .15s, background .15s;
+  }
+  .lista-rm:hover { color: var(--red); background: #1A0A0A; }
+
+  .lista-vazia {
+    padding: 16px; text-align: center;
+    color: var(--muted); font-size: 12px; font-style: italic;
+  }
+
+  /* ── Histórico ── */
+  .hist-wrap {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .hist-tag {
+    padding: 4px 10px; border-radius: 20px;
+    background: var(--bg3); border: 1px solid var(--border);
+    font-size: 11px; color: var(--muted);
+  }
+
+  /* ── Logo upload ── */
+  .logo-upload {
+    display: flex; align-items: center; gap: 10px;
+  }
+  #logo-preview {
+    height: 40px; width: auto; max-width: 120px;
+    object-fit: contain; display: none; border-radius: 2px;
+  }
+
+  /* ── Input / textarea ── */
+  input[type=text], input[type=number], textarea {
+    background: var(--bg3); color: var(--white);
+    border: 1px solid var(--border); border-radius: 3px;
+    padding: 8px 10px; font-family: 'Inter', sans-serif;
+    font-size: 13px; width: 100%;
+    transition: border-color .15s;
+  }
+  input[type=text]:focus,
+  input[type=number]:focus,
+  textarea:focus {
+    outline: none; border-color: var(--blue);
+  }
+  textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
+
+  input[type=range] {
+    width: 100%; accent-color: var(--blue);
+  }
+
+  .input-row {
+    display: flex; gap: 8px;
+  }
+  .input-row input { flex: 1; }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: #00000088; z-index: 100;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 24px; width: 440px; max-width: 95vw;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .modal-title {
+    font-size: 14px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase;
+    color: var(--gold);
+  }
+  .modal-footer { display: flex; gap: 8px; justify-content: flex-end; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- HEADER -->
+  <header>
+    <img id="header-logo" src="logo.png" alt="Logo"
+         onload="this.style.display='block'" onerror="this.style.display='none'">
+    <span class="header-title">Mini<span>ONU</span> — Mesa Diretora</span>
+    <div class="header-right">
+      <span id="clock">00:00:00</span>
+    </div>
+  </header>
+
+  <!-- PAINEL ESQUERDO -->
+  <div class="panel">
+
+    <!-- Comitê / Tópico -->
+    <div class="section">
+      <div class="section-head">
+        Sessão
+        <button class="btn btn-ghost btn-sm" onclick="abrirModalSessao()">✎ Editar</button>
+      </div>
+      <div class="section-body" style="display:flex;flex-direction:column;gap:8px">
+        <div class="info-row">
+          <span class="info-label">Comitê</span>
+          <span class="info-value" id="show-comite">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Tópico</span>
+          <span class="info-value gold" id="show-topico">—</span>
+        </div>
+        <div class="info-row" style="margin-top:4px">
+          <span class="info-label" style="font-size:9px">Fonte tópico</span>
+          <input type="range" id="font-range" min="14" max="60" value="22"
+                 oninput="salvarFonte(this.value)" style="flex:1">
+          <span id="font-val" style="font-size:11px;color:var(--muted);min-width:32px;text-align:right">22px</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Orador atual -->
+    <div class="section">
+      <div class="section-head">Orador Atual</div>
+      <div class="section-body">
+        <div class="orador-atual vazio" id="orador-display">Nenhum orador</div>
+      </div>
+    </div>
+
+    <!-- Timer -->
+    <div class="section">
+      <div class="section-head">Cronômetro</div>
+      <div class="section-body">
+        <div class="timer-display idle" id="timer-display">01:30</div>
+        <div class="timer-bar-wrap">
+          <div class="timer-bar" id="timer-bar"></div>
+        </div>
+        <div class="timer-controls">
+          <button class="btn btn-primary" id="btn-iniciar" onclick="iniciarTimer()">▶ Iniciar</button>
+          <button class="btn btn-ghost" onclick="pararTimer()">⏹ Parar</button>
+        </div>
+        <div class="timer-cfg">
+          <span>Tempo de fala:</span>
+          <button class="btn btn-ghost btn-sm" onclick="ajustarTempo(-30)">−30s</button>
+          <button class="btn btn-ghost btn-sm" onclick="ajustarTempo(-10)">−10s</button>
+          <span id="tempo-display" style="font-size:15px;font-weight:700;color:var(--white);min-width:44px;text-align:center">1:30</span>
+          <button class="btn btn-ghost btn-sm" onclick="ajustarTempo(+10)">+10s</button>
+          <button class="btn btn-ghost btn-sm" onclick="ajustarTempo(+30)">+30s</button>
+          <button class="btn btn-gold btn-sm" onclick="definirTempo()" title="Digitar valor">✎</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logo -->
+    <div class="section">
+      <div class="section-head">Logo da Escola</div>
+      <div class="section-body">
+        <div class="logo-upload">
+          <img id="logo-preview" src="" alt="Logo">
+          <div style="display:flex;flex-direction:column;gap:6px;flex:1">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer;text-align:center">
+              📁 Carregar PNG
+              <input type="file" accept="image/png,image/jpeg,image/gif"
+                     style="display:none" onchange="carregarLogo(this)">
+            </label>
+            <button class="btn btn-danger btn-sm" onclick="removerLogo()">✕ Remover</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PAINEL DIREITO -->
+  <div class="panel">
+
+    <!-- Ações principais -->
+    <div class="section">
+      <div class="section-head">Ações</div>
+      <div class="section-body btn-group">
+        <button class="btn btn-primary btn-full" style="padding:14px" onclick="chamarProximo()">
+          ▶&nbsp;&nbsp;Chamar Próximo Orador
+        </button>
+        <div class="btn-row">
+          <button class="btn btn-ghost" onclick="abrirModalAdicionar()">➕ Adicionar</button>
+          <button class="btn btn-ghost" onclick="chamarPorNome()">✏ Chamar por nome</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-ghost" onclick="repetirAtual()">🔁 Repetir chamada</button>
+          <button class="btn btn-danger" onclick="zerarLista()">🗑 Zerar lista</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lista de oradores -->
+    <div class="section" style="flex:1">
+      <div class="section-head">
+        Lista de Oradores
+        <button class="btn btn-ghost btn-sm" onclick="abrirModalEditar()">📝 Editar tudo</button>
+      </div>
+      <div class="section-body">
+        <div class="lista-wrap" id="lista-wrap">
+          <div class="lista-vazia">Nenhum orador inscrito</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Histórico -->
+    <div class="section">
+      <div class="section-head">Histórico</div>
+      <div class="section-body">
+        <div class="hist-wrap" id="hist-wrap">
+          <span style="color:var(--muted);font-size:12px">—</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Modal: Sessão ────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-sessao">
+  <div class="modal">
+    <div class="modal-title">✎ Editar Sessão</div>
+    <div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.08em">Comitê</div>
+      <input type="text" id="input-comite" placeholder="Ex: Conselho de Segurança">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.08em">Tópico em debate</div>
+      <input type="text" id="input-topico" placeholder="Ex: Desarmamento Nuclear">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modal-sessao')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarSessao()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Adicionar ─────────────────────────────────── -->
+<div class="modal-overlay" id="modal-adicionar">
+  <div class="modal">
+    <div class="modal-title">➕ Adicionar Orador</div>
+    <div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.08em">País / Delegação / Nome</div>
+      <div class="input-row">
+        <input type="text" id="input-novo" placeholder="Ex: Brasil"
+               onkeydown="if(event.key==='Enter') salvarAdicionar()">
+        <button class="btn btn-primary" onclick="salvarAdicionar()">Adicionar</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px">
+        Pressione Enter ou clique Adicionar para incluir vários sem fechar.
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:4px">
+      Na fila agora
+    </div>
+    <div id="preview-fila" style="font-size:12px;color:var(--white);line-height:1.8"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modal-adicionar')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Editar lista ──────────────────────────────── -->
+<div class="modal-overlay" id="modal-editar">
+  <div class="modal">
+    <div class="modal-title">📝 Editar Lista Completa</div>
+    <div style="font-size:11px;color:var(--muted)">Um nome por linha. A ordem define a fila.</div>
+    <textarea id="textarea-lista" rows="10"></textarea>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="fecharModal('modal-editar')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarListaCompleta()">✔ Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── ESTADO ──────────────────────────────────────────────────────────────────
+const KEY = 'minionu_estado';
+
+function estadoInicial() {
+  return {
+    comite:       'Comitê Geral',
+    topico:       'Tema em debate',
+    orador_atual: null,
+    fila:         [],
+    historico:    [],
+    tempo_limite: 90,
+    timer_inicio: null,
+    timer_ativo:  false,
+    logo_data:    null,   // base64
+    font_topico:  22,
+    atualizado_em: Date.now(),
+  };
+}
+
+function carregar() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    return raw ? { ...estadoInicial(), ...JSON.parse(raw) } : estadoInicial();
+  } catch { return estadoInicial(); }
+}
+
+function salvar(e) {
+  localStorage.setItem(KEY, JSON.stringify(e));
+}
+
+// ── RELÓGIO ─────────────────────────────────────────────────────────────────
+function tick() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    String(now.getHours()).padStart(2,'0') + ':' +
+    String(now.getMinutes()).padStart(2,'0') + ':' +
+    String(now.getSeconds()).padStart(2,'0');
+}
+setInterval(tick, 1000); tick();
+
+// ── TIMER ───────────────────────────────────────────────────────────────────
+function tempoRestante(e) {
+  if (!e.timer_ativo || !e.timer_inicio) return e.tempo_limite;
+  const dec = Math.floor((Date.now() - e.timer_inicio) / 1000);
+  return Math.max(0, e.tempo_limite - dec);
+}
+
+function fmtTempo(seg) {
+  const m = Math.floor(seg / 60), s = seg % 60;
+  return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+function iniciarTimer() {
+  const e = carregar();
+  if (!e.orador_atual) { alert('Chame um orador primeiro.'); return; }
+  e.timer_inicio = Date.now();
+  e.timer_ativo  = true;
+  e.atualizado_em = Date.now();
+  salvar(e);
+  atualizarUI();
+}
+
+function pararTimer() {
+  const e = carregar();
+  e.timer_ativo  = false;
+  e.timer_inicio = null;
+  e.atualizado_em = Date.now();
+  salvar(e);
+  atualizarUI();
+}
+
+function ajustarTempo(delta) {
+  const e = carregar();
+  e.tempo_limite = Math.min(600, Math.max(10, (e.tempo_limite || 90) + delta));
+  e.timer_ativo  = false;
+  e.timer_inicio = null;
+  salvar(e);
+  atualizarUI();
+}
+
+function definirTempo() {
+  const e = carregar();
+  const atual = e.tempo_limite || 90;
+  const v = prompt(`Tempo de fala em segundos (atual: ${atual}s)\n\nExemplos: 60 = 1min, 90 = 1min30s, 120 = 2min`, atual);
+  if (v === null) return;
+  const num = parseInt(v);
+  if (isNaN(num) || num < 10 || num > 600) { alert('Digite um valor entre 10 e 600 segundos.'); return; }
+  e.tempo_limite = num;
+  e.timer_ativo  = false;
+  e.timer_inicio = null;
+  salvar(e);
+  atualizarUI();
+}
+
+// ── ORADORES ────────────────────────────────────────────────────────────────
+function chamarProximo() {
+  const e = carregar();
+  if (!e.fila.length) { alert('Nenhum orador na lista.'); return; }
+  registrarChamada(e, e.fila.shift());
+}
+
+function chamarPorNome() {
+  const nome = prompt('País / Delegação / Nome:');
+  if (!nome || !nome.trim()) return;
+  const e = carregar();
+  const idx = e.fila.indexOf(nome.trim());
+  if (idx >= 0) e.fila.splice(idx, 1);
+  registrarChamada(e, nome.trim());
+}
+
+function registrarChamada(e, nome) {
+  if (e.orador_atual) {
+    e.historico.push(e.orador_atual);
+    if (e.historico.length > 10) e.historico = e.historico.slice(-10);
+  }
+  e.orador_atual  = nome;
+  e.timer_ativo   = false;
+  e.timer_inicio  = null;
+  e.atualizado_em = Date.now();
+  salvar(e);
+  atualizarUI();
+}
+
+function repetirAtual() {
+  const e = carregar();
+  if (!e.orador_atual) { alert('Nenhum orador foi chamado ainda.'); return; }
+  e.atualizado_em = Date.now();
+  salvar(e);
+}
+
+function zerarLista() {
+  if (!confirm('Zerar toda a lista e histórico?')) return;
+  const e = carregar();
+  const novo = estadoInicial();
+  novo.comite      = e.comite;
+  novo.topico      = e.topico;
+  novo.tempo_limite= e.tempo_limite;
+  novo.logo_data   = e.logo_data;
+  novo.font_topico = e.font_topico;
+  salvar(novo);
+  atualizarUI();
+}
+
+function removerDaLista(idx) {
+  const e = carregar();
+  e.fila.splice(idx, 1);
+  e.atualizado_em = Date.now();
+  salvar(e);
+  atualizarUI();
+}
+
+// ── SESSÃO ──────────────────────────────────────────────────────────────────
+function salvarSessao() {
+  const e = carregar();
+  e.comite  = document.getElementById('input-comite').value.trim() || e.comite;
+  e.topico  = document.getElementById('input-topico').value.trim() || e.topico;
+  e.atualizado_em = Date.now();
+  salvar(e);
+  fecharModal('modal-sessao');
+  atualizarUI();
+}
+
+function salvarFonte(v) {
+  const e = carregar();
+  e.font_topico = parseInt(v);
+  e.atualizado_em = Date.now();
+  salvar(e);
+  document.getElementById('font-val').textContent = v + 'px';
+}
+
+// ── LOGO ─────────────────────────────────────────────────────────────────────
+function carregarLogo(input) {
+  if (!input.files.length) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const e = carregar();
+    e.logo_data = ev.target.result;
+    e.atualizado_em = Date.now();
+    salvar(e);
+    atualizarLogoPreview(ev.target.result);
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function removerLogo() {
+  const e = carregar();
+  e.logo_data = null;
+  e.atualizado_em = Date.now();
+  salvar(e);
+  atualizarLogoPreview(null);
+}
+
+function atualizarLogoPreview(data) {
+  const prev = document.getElementById('logo-preview');
+  const hdr  = document.getElementById('header-logo');
+  if (data) {
+    prev.src = data; prev.style.display = 'block';
+    hdr.src  = data; hdr.style.display  = 'block';
+  } else {
+    prev.style.display = 'none';
+    hdr.style.display  = 'none';
+  }
+}
+
+// ── MODAIS ───────────────────────────────────────────────────────────────────
+function abrirModalSessao() {
+  const e = carregar();
+  document.getElementById('input-comite').value = e.comite;
+  document.getElementById('input-topico').value = e.topico;
+  document.getElementById('modal-sessao').classList.add('open');
+  document.getElementById('input-comite').focus();
+}
+
+function abrirModalAdicionar() {
+  atualizarPreviewFila();
+  document.getElementById('modal-adicionar').classList.add('open');
+  document.getElementById('input-novo').value = '';
+  document.getElementById('input-novo').focus();
+}
+
+function salvarAdicionar() {
+  const inp  = document.getElementById('input-novo');
+  const nome = inp.value.trim();
+  if (!nome) return;
+  const e = carregar();
+  e.fila.push(nome);
+  e.atualizado_em = Date.now();
+  salvar(e);
+  inp.value = '';
+  inp.focus();
+  atualizarPreviewFila();
+  atualizarUI();
+}
+
+function atualizarPreviewFila() {
+  const e = carregar();
+  const el = document.getElementById('preview-fila');
+  el.textContent = e.fila.length
+    ? e.fila.map((n,i) => `${i+1}. ${n}`).join('\n')
+    : 'Vazia';
+}
+
+function abrirModalEditar() {
+  const e = carregar();
+  document.getElementById('textarea-lista').value = e.fila.join('\n');
+  document.getElementById('modal-editar').classList.add('open');
+  document.getElementById('textarea-lista').focus();
+}
+
+function salvarListaCompleta() {
+  const raw = document.getElementById('textarea-lista').value;
+  const nova = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  const e = carregar();
+  e.fila = nova;
+  e.atualizado_em = Date.now();
+  salvar(e);
+  fecharModal('modal-editar');
+  atualizarUI();
+}
+
+function fecharModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// Fechar modal ao clicar fora
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', ev => {
+    if (ev.target === el) el.classList.remove('open');
+  });
+});
+
+// ── RENDER ───────────────────────────────────────────────────────────────────
+function atualizarUI() {
+  const e = carregar();
+
+  // Info sessão
+  document.getElementById('show-comite').textContent = e.comite;
+  document.getElementById('show-topico').textContent = e.topico;
+  document.getElementById('font-range').value = e.font_topico;
+  document.getElementById('font-val').textContent = e.font_topico + 'px';
+
+  // Orador atual
+  const od = document.getElementById('orador-display');
+  if (e.orador_atual) {
+    od.textContent = e.orador_atual;
+    od.className = 'orador-atual';
+  } else {
+    od.textContent = 'Nenhum orador';
+    od.className = 'orador-atual vazio';
+  }
+
+  // Timer
+  const restante = tempoRestante(e);
+  const limite   = e.tempo_limite;
+  const ratio    = limite > 0 ? restante / limite : 0;
+  const td       = document.getElementById('timer-display');
+  const tb       = document.getElementById('timer-bar');
+
+  td.textContent = fmtTempo(restante);
+  tb.style.width = (ratio * 100) + '%';
+
+  if (!e.timer_ativo) {
+    td.className = 'timer-display idle';
+    tb.style.background = 'var(--muted)';
+  } else if (ratio > 0.4) {
+    td.className = 'timer-display';
+    tb.style.background = 'var(--green)';
+  } else if (restante > 10) {
+    td.className = 'timer-display orange';
+    tb.style.background = 'var(--orange)';
+  } else {
+    td.className = 'timer-display red';
+    tb.style.background = 'var(--red)';
+  }
+
+  document.getElementById('btn-iniciar').textContent =
+    e.timer_ativo ? '▶ Reiniciar' : '▶ Iniciar';
+  const m = Math.floor(limite/60), s = limite%60;
+  document.getElementById('tempo-display').textContent =
+    s === 0 ? `${m}min` : `${m}:${String(s).padStart(2,'0')}`;
+
+  // Lista
+  const wrap = document.getElementById('lista-wrap');
+  if (!e.fila.length) {
+    wrap.innerHTML = '<div class="lista-vazia">Nenhum orador inscrito</div>';
+  } else {
+    wrap.innerHTML = e.fila.map((nome, i) => `
+      <div class="lista-item ${i===0?'primeiro':''}">
+        <span class="lista-num">${i+1}</span>
+        <span class="lista-nome">${nome}</span>
+        <button class="lista-rm" onclick="removerDaLista(${i})" title="Remover">✕</button>
+      </div>`).join('');
+  }
+
+  // Histórico
+  const hw = document.getElementById('hist-wrap');
+  hw.innerHTML = e.historico.length
+    ? [...e.historico].reverse().map(n =>
+        `<span class="hist-tag">${n}</span>`).join('')
+    : '<span style="color:var(--muted);font-size:12px">—</span>';
+
+  // Logo
+  if (e.logo_data) atualizarLogoPreview(e.logo_data);
+}
+
+// ── POLLING (atualiza timer a cada 500ms) ────────────────────────────────────
+setInterval(atualizarUI, 500);
+atualizarUI();
+</script>
+</body>
+</html>

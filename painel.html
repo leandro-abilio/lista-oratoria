@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Público — MiniONU</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #08101E;
+    --bg2:      #0D1A2E;
+    --bg3:      #132240;
+    --bg4:      #1A2E50;
+    --blue:     #1A7FD4;
+    --blue-d:   #0A3A6A;
+    --gold:     #C9A84C;
+    --gold-d:   #3A2800;
+    --white:    #EDF2FF;
+    --muted:    #5A7A9A;
+    --muted2:   #2A4060;
+    --green:    #34D399;
+    --orange:   #FB923C;
+    --red:      #F87171;
+    --border:   #1A3050;
+  }
+
+  html, body {
+    height: 100%; background: var(--bg);
+    color: var(--white); font-family: 'Inter', sans-serif;
+    overflow: hidden;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    height: 100vh;
+  }
+
+  /* ── Cabeçalho ── */
+  header {
+    background: var(--blue-d);
+    border-bottom: 2px solid var(--blue);
+    padding: 12px 36px;
+    display: flex; align-items: center; gap: 18px;
+  }
+
+  #logo {
+    height: 52px; width: auto;
+    object-fit: contain; display: none;
+  }
+
+  .header-comite {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(16px, 2vw, 26px);
+    color: var(--white);
+    flex: 1;
+  }
+
+  #clock-p {
+    font-size: clamp(18px, 2vw, 28px);
+    font-weight: 600; color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Tópico ── */
+  .topico-bar {
+    background: var(--gold-d);
+    border-bottom: 1px solid var(--gold);
+    padding: 10px 36px;
+    display: flex; align-items: baseline; gap: 14px;
+  }
+
+  .topico-label {
+    font-size: 10px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: var(--gold); white-space: nowrap;
+  }
+
+  #topico-text {
+    color: var(--white); font-weight: 600;
+    line-height: 1.35;
+    font-size: 22px; /* sobrescrito via JS */
+  }
+
+  /* ── Centro: orador + timer ── */
+  .centro {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    overflow: hidden;
+  }
+
+  /* Orador */
+  .orador-section {
+    display: flex; flex-direction: column;
+    justify-content: center;
+    padding: 0 48px;
+    border-right: 1px solid var(--border);
+  }
+
+  .orador-label {
+    font-size: clamp(11px, 1.2vw, 15px);
+    font-weight: 700; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  #orador-nome {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(52px, 8vw, 100px);
+    color: var(--blue);
+    line-height: 1.1;
+    word-break: break-word;
+    transition: color .3s;
+  }
+  #orador-nome.vazio { color: var(--muted2); font-style: italic; }
+
+  /* Timer */
+  .timer-section {
+    width: clamp(200px, 22vw, 320px);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 24px 32px;
+    background: var(--bg2);
+    gap: 12px;
+  }
+
+  .timer-label {
+    font-size: 11px; font-weight: 700;
+    letter-spacing: .14em; text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  #timer-num {
+    font-size: clamp(52px, 7vw, 90px);
+    font-weight: 700; font-variant-numeric: tabular-nums;
+    color: var(--green); letter-spacing: .03em;
+    transition: color .3s;
+    line-height: 1;
+  }
+
+  .bar-wrap {
+    width: 100%; height: 8px;
+    background: var(--muted2); border-radius: 4px; overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%; border-radius: 4px;
+    background: var(--green);
+    transition: width .5s linear, background .3s;
+  }
+
+  /* ── Fila de oradores ── */
+  .fila-section {
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex; align-items: stretch; gap: 10px;
+    overflow: hidden;
+  }
+
+  .fila-titulo {
+    font-size: 10px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    display: flex; align-items: center;
+    padding-right: 10px;
+    border-right: 1px solid var(--border);
+  }
+
+  .cards-wrap {
+    flex: 1; display: flex; gap: 10px;
+    overflow: hidden;
+    align-items: stretch;
+  }
+
+  .card {
+    flex: 1; min-width: 0;
+    background: var(--bg3);
+    border-radius: 3px;
+    border-top: 3px solid var(--border);
+    padding: 10px 14px;
+    display: flex; flex-direction: column; gap: 4px;
+    overflow: hidden;
+    transition: border-color .3s;
+  }
+
+  .card.atual {
+    background: var(--blue-d);
+    border-top-color: var(--blue);
+  }
+
+  .card-pos {
+    font-size: 10px; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase;
+  }
+  .card.atual .card-pos { color: var(--blue); }
+  .card:not(.atual) .card-pos { color: var(--muted); }
+
+  .card-nome {
+    font-size: clamp(28px, 3.2vw, 48px);
+    font-weight: 700; color: var(--white);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .card.vazio .card-nome { color: var(--muted2); font-style: italic; font-size: 13px; }
+
+  /* ESC hint */
+  .esc-hint {
+    position: fixed; bottom: 8px; right: 14px;
+    font-size: 10px; color: var(--muted2);
+    pointer-events: none;
+  }
+
+  /* Animação de flash no orador */
+  @keyframes flash {
+    0%,100% { opacity: 1; }
+    50%      { opacity: 0; }
+  }
+  .flash { animation: flash .25s ease-in-out 4; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- Cabeçalho -->
+  <header>
+    <img id="logo" src="" alt="Logo"
+         onload="this.style.display='block'" onerror="this.style.display='none'">
+    <span class="header-comite" id="header-comite">MiniONU</span>
+    <span id="clock-p">00:00:00</span>
+  </header>
+
+  <!-- Tópico -->
+  <div class="topico-bar">
+    <span class="topico-label">Tópico</span>
+    <span id="topico-text">—</span>
+  </div>
+
+  <!-- Centro -->
+  <div class="centro">
+    <div class="orador-section">
+      <div class="orador-label">Com a palavra</div>
+      <div id="orador-nome" class="vazio">—</div>
+    </div>
+
+    <div class="timer-section">
+      <span class="timer-label">Tempo</span>
+      <span id="timer-num">—:——</span>
+      <div class="bar-wrap">
+        <div class="bar-fill" id="bar-fill" style="width:100%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fila -->
+  <div class="fila-section">
+    <div class="fila-titulo">Oradores</div>
+    <div class="cards-wrap" id="cards-wrap">
+      <div class="card vazio">
+        <span class="card-pos">—</span>
+        <span class="card-nome">Nenhum inscrito</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="esc-hint">F11 · tela cheia</div>
+
+<script>
+const KEY = 'minionu_estado';
+let ultimoOrador = null;
+let ultimoTs     = 0;
+
+function carregar() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+function fmtTempo(seg) {
+  seg = Math.max(0, seg);
+  const m = Math.floor(seg / 60), s = seg % 60;
+  return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+function tempoRestante(e) {
+  if (!e.timer_ativo || !e.timer_inicio) return e.tempo_limite ?? 90;
+  const dec = Math.floor((Date.now() - e.timer_inicio) / 1000);
+  return Math.max(0, (e.tempo_limite ?? 90) - dec);
+}
+
+// Relógio
+function tick() {
+  const now = new Date();
+  document.getElementById('clock-p').textContent =
+    String(now.getHours()).padStart(2,'0') + ':' +
+    String(now.getMinutes()).padStart(2,'0') + ':' +
+    String(now.getSeconds()).padStart(2,'0');
+}
+setInterval(tick, 1000); tick();
+
+function atualizar() {
+  const e = carregar();
+
+  // Cabeçalho
+  document.getElementById('header-comite').textContent = e.comite ?? 'MiniONU';
+
+  // Tópico + fonte
+  const tt = document.getElementById('topico-text');
+  tt.textContent = e.topico ?? '—';
+  tt.style.fontSize = (e.font_topico ?? 22) + 'px';
+
+  // Logo
+  const logo = document.getElementById('logo');
+  if (e.logo_data) { logo.src = e.logo_data; }
+
+  // Orador — detecta mudança e anima
+  const orador = e.orador_atual;
+  const on = document.getElementById('orador-nome');
+  if (orador !== ultimoOrador) {
+    ultimoOrador = orador;
+    on.classList.remove('flash');
+    void on.offsetWidth; // reflow p/ reiniciar animação
+    on.classList.add('flash');
+    setTimeout(() => on.classList.remove('flash'), 1200);
+  }
+  on.textContent = orador ?? '—';
+  on.className   = orador ? '' : 'vazio';
+
+  // Timer
+  const restante = tempoRestante(e);
+  const limite   = e.tempo_limite ?? 90;
+  const ratio    = limite > 0 ? restante / limite : 0;
+  const tn  = document.getElementById('timer-num');
+  const bar = document.getElementById('bar-fill');
+
+  tn.textContent = fmtTempo(restante);
+  bar.style.width = (ratio * 100) + '%';
+
+  if (!e.timer_ativo) {
+    tn.style.color  = 'var(--muted)';
+    bar.style.background = 'var(--muted2)';
+  } else if (ratio > 0.4) {
+    tn.style.color  = 'var(--green)';
+    bar.style.background = 'var(--green)';
+  } else if (restante > 10) {
+    tn.style.color  = 'var(--orange)';
+    bar.style.background = 'var(--orange)';
+  } else {
+    const pisca = Math.floor(Date.now() / 400) % 2 === 0;
+    tn.style.color  = pisca ? 'var(--red)' : 'var(--bg)';
+    bar.style.background = 'var(--red)';
+  }
+
+  // Cards da fila
+  const wrap = document.getElementById('cards-wrap');
+  const fila = e.fila ?? [];
+
+  // Monta: [atual] + próximos (até 7)
+  const itens = [];
+  if (orador) itens.push({ tipo: 'atual', nome: orador });
+  fila.slice(0, 7).forEach((n, i) => itens.push({ tipo: 'fila', nome: n, pos: i + 1 }));
+
+  if (!itens.length) {
+    wrap.innerHTML = `<div class="card vazio">
+      <span class="card-pos">—</span>
+      <span class="card-nome">Nenhum inscrito</span>
+    </div>`;
+  } else {
+    wrap.innerHTML = itens.map(it => {
+      const cls   = it.tipo === 'atual' ? 'atual' : '';
+      const label = it.tipo === 'atual' ? '● Atual' : `${it.pos}º`;
+      return `<div class="card ${cls}">
+        <span class="card-pos">${label}</span>
+        <span class="card-nome" title="${it.nome}">${it.nome}</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+setInterval(atualizar, 400);
+atualizar();
+</script>
+</body>
+</html>
